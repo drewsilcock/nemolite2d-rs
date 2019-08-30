@@ -15,6 +15,10 @@ use model_parameters::ModelParameters;
 
 type WorkingPrecision = f64;
 
+const AMP_TIDE: WorkingPrecision = 0.2;
+const OMEGA_TIDE: WorkingPrecision = 2.0;
+const GRAVITY_FORCE: WorkingPrecision = 9.80665;
+
 struct GridConstants {
     pub e1t: FortranArray2D<WorkingPrecision>,
     pub e2t: FortranArray2D<WorkingPrecision>,
@@ -344,6 +348,107 @@ fn boundary_conditions_kernel(
 ) {
     let jpi = model_params.jpi;
     let jpj = model_params.jpj;
+
+    let pt = &grid_constants.pt;
+
+    // Apply open boundary conditions of clamped sea surface height
+    for jj in 1..jpj {
+        for ji in 1..jpi {
+            if pt.get(ji, jj) <= 0 {
+                continue;
+            }
+
+            if pt.get(ji, jj - 1) < 0
+                || pt.get(ji, jj + 1) < 0
+                || pt.get(ji - 1, jj) < 0
+                || pt.get(ji + 1, jj) < 0
+            {
+                simulation_vars
+                    .ssha
+                    .set(ji, jj, AMP_TIDE * (OMEGA_TIDE * current_time).sin());
+            }
+        }
+    }
+
+    // Apply solid boundary conditions for u-velocity
+    for jj in 1..jpj {
+        for ji in 0..jpi {
+            if pt.get(ji, jj) * pt.get(ji + 1, jj) == 0 {
+                simulation_vars.ua.set(ji, jj, 0.0);
+            }
+        }
+    }
+
+    // Apply solid boundary conditions for v-velocity
+    for jj in 0..jpj {
+        for ji in 1..jpi {
+            if pt.get(ji, jj) * pt.get(ji, jj + 1) == 0 {
+                simulation_vars.va.set(ji, jj, 0.0);
+            }
+        }
+    }
+
+    // Flather open boundary condition for u
+    for jj in 1..jpj {
+        for ji in 0..jpi {
+            if pt.get(ji, jj) + pt.get(ji + 1, jj) <= -1 {
+                continue;
+            }
+
+            if pt.get(ji, jj) < 0 {
+                let jiu = ji + 1;
+                simulation_vars.ua_buffer.set(
+                    ji,
+                    jj,
+                    simulation_vars.ua.get(jiu, jj)
+                        + (GRAVITY_FORCE / grid_constants.hu.get(ji, jj)).sqrt()
+                            * (simulation_vars.sshn_u.get(ji, jj)
+                                - simulation_vars.sshn_u.get(jiu, jj)),
+                );
+            } else if pt.get(ji + 1, jj) < 0 {
+                let jiu = ji - 1;
+                simulation_vars.ua_buffer.set(
+                    ji,
+                    jj,
+                    simulation_vars.ua.get(jiu, jj)
+                        + (GRAVITY_FORCE / grid_constants.hu.get(ji, jj)).sqrt()
+                            * (simulation_vars.sshn_u.get(ji, jj)
+                                - simulation_vars.sshn_u.get(jiu, jj)),
+                );
+            }
+        }
+    }
+
+    // Flather open boundary condition for v
+    for jj in 0..jpj {
+        for ji in 1..jpi {
+            if pt.get(ji, jj) + pt.get(ji, jj + 1) <= -1 {
+                continue;
+            }
+
+            if pt.get(ji, jj) < 0 {
+                let jiv = jj + 1;
+                simulation_vars.va_buffer.set(
+                    ji,
+                    jj,
+                    simulation_vars.va.get(ji, jiv)
+                        + (GRAVITY_FORCE / grid_constants.hv.get(ji, jj).sqrt()
+                            * (simulation_vars.sshn_v.get(ji, jj)
+                                - simulation_vars.sshn_v.get(ji, jiv))),
+                );
+            } else if pt.get(ji, jj + 1) < 0 {
+                let jiv = jj - 1;
+                simulation_vars.va_buffer.set(
+                    ji,
+                    jj,
+                    simulation_vars.va.get(ji, jiv)
+                        + (GRAVITY_FORCE / grid_constants.hv.get(ji, jj).sqrt()
+                            * (simulation_vars.sshn_v.get(ji, jj)
+                                - simulation_vars.sshn_v.get(ji, jiv))),
+                );
+            }
+        }
+    }
 }
 
 fn next_kernel(
