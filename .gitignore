@@ -1,2 +1,12 @@
+# Application output
+*_output_*.csv
+
+# Vim files
+.*.swp
+.*.swo
+*~
+.*~
+
+# Cargo files
 /target
 **/*.rs.bk

@@ -1,12 +1,14 @@
 #![warn(clippy::all)]
 
 mod checksum;
-mod model_parameters;
 mod fortran_array_2d;
+mod model_parameters;
 
-use std::cmp::{min, max};
-
-use nalgebra::DMatrix;
+use std::cmp::{max, min};
+use std::error::Error;
+use std::fs::File;
+use std::io::Write;
+use std::path::Path;
 
 use fortran_array_2d::FortranArray2D;
 use model_parameters::ModelParameters;
@@ -101,7 +103,7 @@ impl GridConstants {
         }
 
         // Solid boundary on North
-        for ji in 0.. jpi + 1 {
+        for ji in 0..jpi + 1 {
             self.pt.set(ji, jpj + 1, 0);
         }
 
@@ -132,27 +134,38 @@ impl GridConstants {
 
         for ji in 1..jpi {
             for jj in 1..jpj {
-                self.e12t.set(ji, jj, self.e1t.get(ji, jj) * self.e2t.get(ji, jj));
+                self.e12t
+                    .set(ji, jj, self.e1t.get(ji, jj) * self.e2t.get(ji, jj));
 
                 // NOTE: The NEMOLite2D Fortran code was designed to handle a dx that
                 // varies, indicating a non-linear physical grid size (different cells
                 // have different sizes). Here we assume that the dx and dy are fixed and
                 // not variant on the grid cell. This makes the calculation much easier
                 // and makes parallelising the below xt, yt initilisation possible.
-                self.xt.set(ji, jj, self.e1t.get(ji, jj) * ((ji as WorkingPrecision) - 0.5));
-                self.yt.set(ji, jj, self.e2t.get(ji, jj) * ((jj as WorkingPrecision) - 0.5));
+                self.xt.set(
+                    ji,
+                    jj,
+                    self.e1t.get(ji, jj) * ((ji as WorkingPrecision) - 0.5),
+                );
+                self.yt.set(
+                    ji,
+                    jj,
+                    self.e2t.get(ji, jj) * ((jj as WorkingPrecision) - 0.5),
+                );
             }
         }
 
         for ji in 0..jpi {
             for jj in 1..jpj {
-                self.e12u.set(ji, jj, self.e1u.get(ji, jj) * self.e2u.get(ji, jj));
+                self.e12u
+                    .set(ji, jj, self.e1u.get(ji, jj) * self.e2u.get(ji, jj));
             }
         }
 
         for ji in 1..jpi {
             for jj in 0..jpj {
-                self.e12v.set(ji, jj, self.e1v.get(ji, jj) * self.e2v.get(ji, jj));
+                self.e12v
+                    .set(ji, jj, self.e1v.get(ji, jj) * self.e2v.get(ji, jj));
             }
         }
     }
@@ -216,8 +229,10 @@ impl SimulationVariables {
             for jj in 1..jpj {
                 let itmp1 = min(ji + 1, jpi);
                 let itmp2 = max(ji, 1);
-                let rtmp1 = grid_constants.e12t.get(itmp1, jj) * self.sshn.get(itmp1, jj) + grid_constants.e12t.get(itmp2, jj) * self.sshn.get(itmp2, jj);
-                self.sshn_u.set(ji, jj, 0.5 * rtmp1 / grid_constants.e12u.get(ji, jj));
+                let rtmp1 = grid_constants.e12t.get(itmp1, jj) * self.sshn.get(itmp1, jj)
+                    + grid_constants.e12t.get(itmp2, jj) * self.sshn.get(itmp2, jj);
+                self.sshn_u
+                    .set(ji, jj, 0.5 * rtmp1 / grid_constants.e12u.get(ji, jj));
             }
         }
 
@@ -225,8 +240,10 @@ impl SimulationVariables {
             for jj in 0..jpj {
                 let itmp1 = min(jj + 1, jpj);
                 let itmp2 = max(jj, 1);
-                let rtmp1 = grid_constants.e12t.get(ji, itmp1) * self.sshn.get(ji, itmp1) + grid_constants.e12t.get(ji, itmp2) * self.sshn.get(ji, itmp2);
-                self.sshn_v.set(ji, jj, 0.5 * rtmp1 / grid_constants.e12v.get(ji, jj));
+                let rtmp1 = grid_constants.e12t.get(ji, itmp1) * self.sshn.get(ji, itmp1)
+                    + grid_constants.e12t.get(ji, itmp2) * self.sshn.get(ji, itmp2);
+                self.sshn_v
+                    .set(ji, jj, 0.5 * rtmp1 / grid_constants.e12v.get(ji, jj));
             }
         }
     }
@@ -237,12 +254,17 @@ fn main() {
     println!("Model params: {:?}", model_params);
 
     let grid_constants = GridConstants::new(&model_params);
-    let simulation_vars = SimulationVariables::new(&model_params, &grid_constants);
+    let mut simulation_vars = SimulationVariables::new(&model_params, &grid_constants);
 
     println!("Initialised grid constants and simulation variables.");
 
     for step_idx in model_params.initial_step_index..model_params.final_step_index {
-        step_simulation(&model_params, &grid_constants, &mut simulation_vars, step_idx);
+        step_simulation(
+            &model_params,
+            &grid_constants,
+            &mut simulation_vars,
+            step_idx,
+        );
     }
 
     let ua_checksum = checksum::field_checksum(&simulation_vars.ua);
@@ -252,35 +274,116 @@ fn main() {
     println!("va checksum = {}", va_checksum);
 }
 
-fn step_simulation(model_params: &ModelParameters, grid_constants: &GridConstants, simulation_vars: &mut SimulationVariables, step_idx: u32) {
+fn step_simulation(
+    model_params: &ModelParameters,
+    grid_constants: &GridConstants,
+    simulation_vars: &mut SimulationVariables,
+    step_idx: u32,
+) {
     let current_time = WorkingPrecision::from(step_idx) * model_params.rdt;
 
     continuity_kernel(model_params, grid_constants, simulation_vars);
     momentum_kernel(model_params, grid_constants, simulation_vars);
-    boundary_conditions_kernel(model_params, grid_constants, simulation_vars);
+    boundary_conditions_kernel(model_params, grid_constants, simulation_vars, current_time);
     next_kernel(model_params, grid_constants, simulation_vars);
 
-    if (step_idx % model_params.output_interval == 0) {
-        output_values(model_params, grid_constants, simulation_vars);
+    if step_idx % model_params.output_interval == 0 {
+        output_values(model_params, grid_constants, simulation_vars, step_idx);
     }
 }
 
-fn continuity_kernel(model_params: &ModelParameters, grid_constants: &GridConstants, simulation_vars: &mut SimulationVariables) {
+fn continuity_kernel(
+    model_params: &ModelParameters,
+    grid_constants: &GridConstants,
+    simulation_vars: &mut SimulationVariables,
+) {
     //
 }
 
-fn momentum_kernel(model_params: &ModelParameters, grid_constants: &GridConstants, simulation_vars: &mut SimulationVariables) {
+fn momentum_kernel(
+    model_params: &ModelParameters,
+    grid_constants: &GridConstants,
+    simulation_vars: &mut SimulationVariables,
+) {
     //
 }
 
-fn boundary_conditions_kernel(model_params: &ModelParameters, grid_constants: &GridConstants, simulation_vars: &mut SimulationVariables) {
+fn boundary_conditions_kernel(
+    model_params: &ModelParameters,
+    grid_constants: &GridConstants,
+    simulation_vars: &mut SimulationVariables,
+    current_time: WorkingPrecision,
+) {
     //
 }
 
-fn next_kernel(model_params: &ModelParameters, grid_constants: &GridConstants, simulation_vars: &mut SimulationVariables) {
+fn next_kernel(
+    model_params: &ModelParameters,
+    grid_constants: &GridConstants,
+    simulation_vars: &mut SimulationVariables,
+) {
     //
 }
 
-fn output_values(model_params: &ModelParameters, grid_constants: &GridConstants, simulation_vars: &SimulationVariables) {
-    //
+fn output_values(
+    model_params: &ModelParameters,
+    grid_constants: &GridConstants,
+    simulation_vars: &SimulationVariables,
+    step_index: u32,
+) {
+    let field_separater = ", ";
+    let line_separator = "\n";
+
+    let headers = [
+        "xt".to_owned(),
+        "yt".to_owned(),
+        "ht".to_owned(),
+        "sshn".to_owned(),
+        "un-variant".to_owned(),
+        "vn-variant".to_owned(),
+    ];
+    let mut rows = vec![headers];
+    for jj in 1..model_params.jpj {
+        for ji in 1..model_params.jpi {
+            let un_variant = 0.5 * simulation_vars.un.get(ji, jj) + simulation_vars.un.get(ji, jj);
+            let vn_variant =
+                0.5 * simulation_vars.vn.get(ji, jj - 1) + simulation_vars.vn.get(ji, jj);
+
+            rows.push([
+                format!("{}", grid_constants.xt.get(ji, jj)),
+                format!("{}", grid_constants.yt.get(ji, jj)),
+                format!("{}", grid_constants.ht.get(ji, jj)),
+                format!("{}", simulation_vars.sshn.get(ji, jj)),
+                format!("{}", un_variant),
+                format!("{}", vn_variant),
+            ]);
+        }
+    }
+
+    let out_csv = rows
+        .iter()
+        .map(|row| row.join(field_separater))
+        .collect::<Vec<String>>()
+        .join(line_separator);
+
+    let output_fname = format!("nemolite2d_output_{}.csv", step_index);
+    let output_path = Path::new(&output_fname);
+    let path_display = output_path.display();
+
+    let mut file = match File::create(&output_path) {
+        Err(why) => panic!(
+            "Couldn't open output file {}: {}",
+            path_display,
+            why.description()
+        ),
+        Ok(file) => file,
+    };
+
+    match file.write_all(out_csv.as_bytes()) {
+        Err(why) => panic!("Couldn't output CSV data to {}: {}", path_display, why),
+        Ok(_) => println!(
+            "Wrote data for step {} to file {}.",
+            step_index, path_display
+        ),
+    }
 }
