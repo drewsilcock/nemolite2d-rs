@@ -41,6 +41,14 @@ where T: Default {
         self.values.iter_mut().map(|x| *x = value).count();
     }
 
+    pub fn iter<'a>(&'a self) -> std::slice::Iter<'a, T> {
+        self.values.iter()
+    }
+
+    pub fn iter_mut<'a>(&'a mut self) -> std::slice::IterMut<'a, T> {
+        self.values.iter_mut()
+    }
+
     fn index_from_row_and_column(&self, row_idx: usize, column_idx: usize) -> usize {
         (row_idx - self.start_row_idx) + (column_idx - self.start_column_idx) * (self.num_rows)
     }

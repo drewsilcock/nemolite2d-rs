@@ -239,5 +239,48 @@ fn main() {
     let grid_constants = GridConstants::new(&model_params);
     let simulation_vars = SimulationVariables::new(&model_params, &grid_constants);
 
-    println!("Initialise grid constants and simulation variables.");
+    println!("Initialised grid constants and simulation variables.");
+
+    for step_idx in model_params.initial_step_index..model_params.final_step_index {
+        step_simulation(&model_params, &grid_constants, &mut simulation_vars, step_idx);
+    }
+
+    let ua_checksum = checksum::field_checksum(&simulation_vars.ua);
+    let va_checksum = checksum::field_checksum(&simulation_vars.va);
+
+    println!("ua checksum = {}", ua_checksum);
+    println!("va checksum = {}", va_checksum);
+}
+
+fn step_simulation(model_params: &ModelParameters, grid_constants: &GridConstants, simulation_vars: &mut SimulationVariables, step_idx: u32) {
+    let current_time = WorkingPrecision::from(step_idx) * model_params.rdt;
+
+    continuity_kernel(model_params, grid_constants, simulation_vars);
+    momentum_kernel(model_params, grid_constants, simulation_vars);
+    boundary_conditions_kernel(model_params, grid_constants, simulation_vars);
+    next_kernel(model_params, grid_constants, simulation_vars);
+
+    if (step_idx % model_params.output_interval == 0) {
+        output_values(model_params, grid_constants, simulation_vars);
+    }
+}
+
+fn continuity_kernel(model_params: &ModelParameters, grid_constants: &GridConstants, simulation_vars: &mut SimulationVariables) {
+    //
+}
+
+fn momentum_kernel(model_params: &ModelParameters, grid_constants: &GridConstants, simulation_vars: &mut SimulationVariables) {
+    //
+}
+
+fn boundary_conditions_kernel(model_params: &ModelParameters, grid_constants: &GridConstants, simulation_vars: &mut SimulationVariables) {
+    //
+}
+
+fn next_kernel(model_params: &ModelParameters, grid_constants: &GridConstants, simulation_vars: &mut SimulationVariables) {
+    //
+}
+
+fn output_values(model_params: &ModelParameters, grid_constants: &GridConstants, simulation_vars: &SimulationVariables) {
+    //
 }
