@@ -132,8 +132,8 @@ impl GridConstants {
         self.hu.set_all(model_params.dep_const);
         self.hv.set_all(model_params.dep_const);
 
-        for ji in 1..jpi {
-            for jj in 1..jpj {
+        for jj in 1..jpj {
+            for ji in 1..jpi {
                 self.e12t
                     .set(ji, jj, self.e1t.get(ji, jj) * self.e2t.get(ji, jj));
 
@@ -155,15 +155,15 @@ impl GridConstants {
             }
         }
 
-        for ji in 0..jpi {
-            for jj in 1..jpj {
+        for jj in 1..jpj {
+            for ji in 0..jpi {
                 self.e12u
                     .set(ji, jj, self.e1u.get(ji, jj) * self.e2u.get(ji, jj));
             }
         }
 
-        for ji in 1..jpi {
-            for jj in 0..jpj {
+        for jj in 0..jpj {
+            for ji in 1..jpi {
                 self.e12v
                     .set(ji, jj, self.e1v.get(ji, jj) * self.e2v.get(ji, jj));
             }
@@ -225,8 +225,8 @@ impl SimulationVariables {
         let jpi = model_params.jpi;
         let jpj = model_params.jpj;
 
-        for ji in 0..jpi {
-            for jj in 1..jpj {
+        for jj in 1..jpj {
+            for ji in 0..jpi {
                 let itmp1 = min(ji + 1, jpi);
                 let itmp2 = max(ji, 1);
                 let rtmp1 = grid_constants.e12t.get(itmp1, jj) * self.sshn.get(itmp1, jj)
@@ -236,8 +236,8 @@ impl SimulationVariables {
             }
         }
 
-        for ji in 1..jpi {
-            for jj in 0..jpj {
+        for jj in 0..jpj {
+            for ji in 1..jpi {
                 let itmp1 = min(jj + 1, jpj);
                 let itmp2 = max(jj, 1);
                 let rtmp1 = grid_constants.e12t.get(ji, itmp1) * self.sshn.get(ji, itmp1)
@@ -332,7 +332,8 @@ fn momentum_kernel(
     grid_constants: &GridConstants,
     simulation_vars: &mut SimulationVariables,
 ) {
-    //
+    let jpi = model_params.jpi;
+    let jpj = model_params.jpj;
 }
 
 fn boundary_conditions_kernel(
@@ -341,7 +342,8 @@ fn boundary_conditions_kernel(
     simulation_vars: &mut SimulationVariables,
     current_time: WorkingPrecision,
 ) {
-    //
+    let jpi = model_params.jpi;
+    let jpj = model_params.jpj;
 }
 
 fn next_kernel(
@@ -349,7 +351,88 @@ fn next_kernel(
     grid_constants: &GridConstants,
     simulation_vars: &mut SimulationVariables,
 ) {
-    //
+    let jpi = model_params.jpi;
+    let jpj = model_params.jpj;
+
+    for jj in 1..jpj {
+        for ji in 0..jpi {
+            simulation_vars
+                .un
+                .set(ji, jj, simulation_vars.ua.get(ji, jj));
+        }
+    }
+
+    for jj in 0..jpj {
+        for ji in 1..jpi {
+            simulation_vars
+                .vn
+                .set(ji, jj, simulation_vars.va.get(ji, jj));
+        }
+    }
+
+    for jj in 1..jpj {
+        for ji in 1..jpi {
+            simulation_vars
+                .sshn
+                .set(ji, jj, simulation_vars.ssha.get(ji, jj));
+        }
+    }
+
+    for jj in 1..jpj {
+        for ji in 0..jpi {
+            let this_cell_type = grid_constants.pt.get(ji, jj);
+            let next_cell_type = grid_constants.pt.get(ji + 1, jj);
+
+            if this_cell_type + next_cell_type <= 0 {
+                continue;
+            }
+
+            if this_cell_type == 1 && next_cell_type == 1 {
+                let rtmp1 = grid_constants.e12t.get(ji, jj) * simulation_vars.sshn.get(ji, jj)
+                    + grid_constants.e12t.get(ji + 1, jj) * simulation_vars.sshn.get(ji + 1, jj);
+
+                simulation_vars
+                    .sshn_u
+                    .set(ji, jj, 0.5 * rtmp1 / grid_constants.e12u.get(ji, jj));
+            } else if this_cell_type <= 0 {
+                simulation_vars
+                    .ssha_u
+                    .set(ji, jj, simulation_vars.sshn.get(ji + 1, jj));
+            } else if next_cell_type <= 0 {
+                simulation_vars
+                    .sshn_u
+                    .set(ji, jj, simulation_vars.sshn.get(ji, jj));
+            }
+        }
+    }
+
+    for jj in 0..jpj {
+        for ji in 1..jpi {
+            let this_cell_type = grid_constants.pt.get(ji, jj);
+            let next_cell_type = grid_constants.pt.get(ji, jj + 1);
+
+            if this_cell_type + next_cell_type <= 0 {
+                continue;
+            }
+
+            if this_cell_type == 1 && next_cell_type == 1 {
+                let rtmp1 = grid_constants.e12t.get(ji, jj) * simulation_vars.sshn.get(ji, jj)
+                    + grid_constants.e12t.get(ji, jj + 1) * simulation_vars.sshn.get(ji, jj + 1);
+
+                simulation_vars
+                    .sshn_u
+                    .set(ji, jj, 0.5 * rtmp1 / grid_constants.e12v.get(ji, jj));
+            } else if this_cell_type <= 0 {
+                simulation_vars
+                    .ssha_u
+                    .set(ji, jj, simulation_vars.sshn.get(ji, jj + 1));
+            } else if next_cell_type <= 0 {
+                simulation_vars
+                    .sshn_u
+                    .set(ji, jj, simulation_vars.sshn.get(ji, jj));
+            }
+        }
+    }
 }
 
 fn output_values(
