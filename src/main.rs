@@ -297,7 +297,34 @@ fn continuity_kernel(
     grid_constants: &GridConstants,
     simulation_vars: &mut SimulationVariables,
 ) {
-    //
+    let jpi = model_params.jpi;
+    let jpj = model_params.jpj;
+
+    for jj in 1..jpj {
+        for ji in 1..jpi {
+            let rtmp1 = (simulation_vars.sshn_u.get(ji, jj) + grid_constants.hu.get(ji, jj))
+                * simulation_vars.un.get(ji, jj);
+
+            let rtmp2 = (simulation_vars.sshn_u.get(ji - 1, jj)
+                + grid_constants.hu.get(ji - 1, jj))
+                * simulation_vars.un.get(ji - 1, jj);
+
+            let rtmp3 = (simulation_vars.sshn_v.get(ji, jj) + grid_constants.hv.get(ji, jj))
+                * simulation_vars.vn.get(ji, jj);
+
+            let rtmp4 = (simulation_vars.sshn_v.get(ji, jj - 1)
+                + grid_constants.hv.get(ji, jj - 1))
+                * simulation_vars.vn.get(ji, jj - 1);
+
+            simulation_vars.ssha.set(
+                ji,
+                jj,
+                simulation_vars.sshn.get(ji, jj)
+                    + (rtmp2 - rtmp1 + rtmp4 - rtmp3) * model_params.rdt
+                        / grid_constants.e12t.get(ji, jj),
+            );
+        }
+    }
 }
 
 fn momentum_kernel(
