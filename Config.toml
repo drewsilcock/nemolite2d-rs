@@ -1,0 +1,11 @@
+jpi                =     128               # Number of columns of model grid
+jpj                =     128               # Number of rows of model grid
+dx                 =    1000.0             # Grid size in x direction (m)
+dy                 =    1000.0             # Grid size in y direction (m)
+dep_const          =     100.0             # Constant depth (m)
+initial_step_index =       1               # First time step
+final_step_index   =     500               # End time step
+output_interval    =      50               # Intervals to save results
+rdt                =      20.0             # Size of time step (second) 
+cbfr               =       0.00015         # Bottom friction coefficeint
+visc               =       0.1             # Horizontal kinematic viscosity coefficient 
