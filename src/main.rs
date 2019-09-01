@@ -644,24 +644,18 @@ fn boundary_conditions_kernel(
 
             if pt.get(ji, jj) < 0 {
                 let jiu = ji + 1;
-                simulation_vars.ua.set(
-                    ji,
-                    jj,
-                    simulation_vars.ua.get(jiu, jj)
-                        + (GRAVITY_FORCE / grid_constants.hu.get(ji, jj)).sqrt()
-                            * (simulation_vars.sshn_u.get(ji, jj)
-                                - simulation_vars.sshn_u.get(jiu, jj)),
-                );
+                let flather_ua = simulation_vars.ua.get(jiu, jj)
+                    + (GRAVITY_FORCE / grid_constants.hu.get(ji, jj)).sqrt()
+                        * (simulation_vars.sshn_u.get(ji, jj)
+                            - simulation_vars.sshn_u.get(jiu, jj));
+                simulation_vars.ua.set(ji, jj, flather_ua);
             } else if pt.get(ji + 1, jj) < 0 {
                 let jiu = ji - 1;
-                simulation_vars.ua.set(
-                    ji,
-                    jj,
-                    simulation_vars.ua.get(jiu, jj)
-                        + (GRAVITY_FORCE / grid_constants.hu.get(ji, jj)).sqrt()
-                            * (simulation_vars.sshn_u.get(ji, jj)
-                                - simulation_vars.sshn_u.get(jiu, jj)),
-                );
+                let flather_ua = simulation_vars.ua.get(jiu, jj)
+                    + (GRAVITY_FORCE / grid_constants.hu.get(ji, jj)).sqrt()
+                        * (simulation_vars.sshn_u.get(ji, jj)
+                            - simulation_vars.sshn_u.get(jiu, jj));
+                simulation_vars.ua.set(ji, jj, flather_ua);
             }
         }
     }
@@ -675,24 +669,18 @@ fn boundary_conditions_kernel(
 
             if pt.get(ji, jj) < 0 {
                 let jiv = jj + 1;
-                simulation_vars.va.set(
-                    ji,
-                    jj,
-                    simulation_vars.va.get(ji, jiv)
-                        + (GRAVITY_FORCE / grid_constants.hv.get(ji, jj).sqrt()
-                            * (simulation_vars.sshn_v.get(ji, jj)
-                                - simulation_vars.sshn_v.get(ji, jiv))),
-                );
+                let flather_va = simulation_vars.va.get(ji, jiv)
+                    + (GRAVITY_FORCE / grid_constants.hv.get(ji, jj)).sqrt()
+                        * (simulation_vars.sshn_v.get(ji, jj)
+                            - simulation_vars.sshn_v.get(ji, jiv));
+                simulation_vars.va.set(ji, jj, flather_va);
             } else if pt.get(ji, jj + 1) < 0 {
                 let jiv = jj - 1;
-                simulation_vars.va.set(
-                    ji,
-                    jj,
-                    simulation_vars.va.get(ji, jiv)
-                        + (GRAVITY_FORCE / grid_constants.hv.get(ji, jj).sqrt()
-                            * (simulation_vars.sshn_v.get(ji, jj)
-                                - simulation_vars.sshn_v.get(ji, jiv))),
-                );
+                let flather_va = simulation_vars.va.get(ji, jiv)
+                    + (GRAVITY_FORCE / grid_constants.hv.get(ji, jj)).sqrt()
+                        * (simulation_vars.sshn_v.get(ji, jj)
+                            - simulation_vars.sshn_v.get(ji, jiv));
+                simulation_vars.va.set(ji, jj, flather_va);
             }
         }
     }
