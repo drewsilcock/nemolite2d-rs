@@ -15,9 +15,12 @@ use model_parameters::ModelParameters;
 
 type WorkingPrecision = f64;
 
+const PI: WorkingPrecision = 3.1415926535897932;
 const AMP_TIDE: WorkingPrecision = 0.2;
 const OMEGA_TIDE: WorkingPrecision = 2.0;
 const GRAVITY_FORCE: WorkingPrecision = 9.80665;
+const EARTH_ROTATIONAL_SPEED: WorkingPrecision = 7.292116E-05; // Earth rotation speed (s^(-1)) a.k.a. omega
+const DEGREES_TO_RADIANS: WorkingPrecision = PI / 180.0;
 
 struct GridConstants {
     pub e1t: FortranArray2D<WorkingPrecision>,
@@ -338,6 +341,146 @@ fn momentum_kernel(
 ) {
     let jpi = model_params.jpi;
     let jpj = model_params.jpj;
+    let rdt = model_params.rdt;
+    let cbfr = model_params.cbfr;
+
+    let e1u = &grid_constants.e1u;
+    let e2u = &grid_constants.e2u;
+    let e1v = &grid_constants.e1v;
+    let e2v = &grid_constants.e2v;
+    let e1t = &grid_constants.e1t;
+    let e2t = &grid_constants.e2t;
+    let e12u = &grid_constants.e2u;
+    let e12v = &grid_constants.e2v;
+    let ht = &grid_constants.ht;
+    let hu = &grid_constants.hu;
+    let hv = &grid_constants.hv;
+    let gphiu = &grid_constants.gphiu;
+    let gphiv = &grid_constants.gphiv;
+    let pt = &grid_constants.pt;
+
+    let sshn = &simulation_vars.sshn;
+    let sshn_u = &simulation_vars.sshn_u;
+    let sshn_v = &simulation_vars.sshn_v;
+    let ssha_u = &simulation_vars.ssha_u;
+    let ssha_v = &simulation_vars.ssha_v;
+    let un = &simulation_vars.un;
+    let vn = &simulation_vars.vn;
+
+    for jj in 1..jpj {
+        for ji in 1..jpi - 1 {
+            // Jump over non-computational domain
+            if pt.get(ji, jj) + pt.get(ji + 1, jj) <= 0 {
+                continue;
+            }
+
+            // Jump over u boundary
+            if pt.get(ji, jj) <= 0 || pt.get(ji + 1, jj) <= 0 {
+                continue;
+            }
+
+            let u_e = 0.5 * (un.get(ji, jj) + un.get(ji + 1, jj)) * e2t.get(ji + 1, jj);
+            let depe = ht.get(ji + 1, jj) + sshn.get(ji + 1, jj);
+
+            let u_w = 0.5 * (un.get(ji, jj) + un.get(ji - 1, jj)) * e2t.get(ji, jj);
+            let depw = ht.get(ji, jj) + sshn.get(ji, jj);
+
+            let v_sc = 0.5 * (vn.get(ji, jj - 1) + vn.get(ji + 1, jj - 1));
+            let v_s = 0.5 * v_sc * (e1v.get(ji, jj - 1) + e1v.get(ji + 1, jj - 1));
+            let deps = 0.5
+                * (hv.get(ji, jj - 1)
+                    + sshn_v.get(ji, jj - 1)
+                    + hv.get(ji + 1, jj - 1)
+                    + sshn_v.get(ji + 1, jj - 1));
+
+            let v_nc = 0.5 * (vn.get(ji, jj) + vn.get(ji + 1, jj));
+            let v_n = 0.5 * v_nc * (e1v.get(ji, jj) + e1v.get(ji + 1, jj));
+            let depn = 0.5
+                * (hv.get(ji, jj)
+                    + sshn_v.get(ji, jj)
+                    + hv.get(ji + 1, jj)
+                    + sshn_v.get(ji + 1, jj));
+
+            // Advection (currently first order upwind)
+            let uu_w = (0.5 - (0.5 as WorkingPrecision).copysign(u_w)) * un.get(ji, jj)
+                + (0.5 + (0.5 as WorkingPrecision).copysign(u_w)) * un.get(ji - 1, jj);
+            let uu_e = (0.5 + (0.5 as WorkingPrecision).copysign(u_e)) * un.get(ji, jj)
+                + (0.5 - (0.5 as WorkingPrecision).copysign(u_e)) * un.get(ji + 1, jj);
+
+            let uu_s = if pt.get(ji, jj - 1) <= 0 || pt.get(ji + 1, jj - 1) <= 0 {
+                (0.5 - (0.5 as WorkingPrecision).copysign(v_s)) * un.get(ji, jj)
+            } else {
+                (0.5 - (0.5 as WorkingPrecision).copysign(v_s)) * un.get(ji, jj)
+                    + (0.5 + (0.5 as WorkingPrecision).copysign(v_s)) * un.get(ji, jj - 1)
+            };
+
+            let uu_n = if pt.get(ji, jj + 1) <= 0 || pt.get(ji + 1, jj + 1) <= 0 {
+                (0.5 + (0.5 as WorkingPrecision).copysign(v_n)) * un.get(ji, jj)
+            } else {
+                (0.5 + (0.5 as WorkingPrecision).copysign(v_n)) * un.get(ji, jj)
+                    + (0.5 - (0.5 as WorkingPrecision).copysign(v_n)) * un.get(ji, jj + 1)
+            };
+
+            let adv = uu_w * u_w * depw - uu_e * u_e * depe + uu_s * v_s * depe + uu_s * v_s * deps
+                - uu_n * v_n * depn;
+
+            // Viscosity
+            let dudx_e = (un.get(ji + 1, jj) - un.get(ji, jj)) / e1t.get(ji + 1, jj)
+                * (ht.get(ji + 1, jj) + sshn.get(ji + 1, jj));
+            let dudx_w = (un.get(ji, jj) - un.get(ji - 1, jj)) / e1t.get(ji, jj)
+                * (ht.get(ji, jj) + sshn.get(ji, jj));
+
+            let dudy_s = if pt.get(ji, jj - 1) <= 0 || pt.get(ji + 1, jj - 1) <= 0 {
+                0.0 // Slip boundary
+            } else {
+                (un.get(ji, jj) - un.get(ji, jj - 1)) / (e2u.get(ji, jj) + e2u.get(ji, jj - 1))
+                    * (hu.get(ji, jj)
+                        + sshn_u.get(ji, jj)
+                        + hu.get(ji, jj - 1)
+                        + sshn_u.get(ji, jj - 1))
+            };
+
+            let dudy_n = if pt.get(ji, jj + 1) <= 0 || pt.get(ji + 1, jj + 1) <= 0 {
+                0.0 // Slip boundary
+            } else {
+                (un.get(ji, jj + 1) - un.get(ji, jj)) / (e2u.get(ji, jj) + e2u.get(ji, jj + 1))
+                    * (hu.get(ji, jj)
+                        + sshn_u.get(ji, jj)
+                        + hu.get(ji, jj + 1)
+                        + sshn_u.get(ji, jj + 1))
+            };
+
+            let vis = model_params.visc * (dudx_e - dudx_w) * e2u.get(ji, jj)
+                + (dudy_n - dudy_s) * e1u.get(ji, jj) * 0.5;
+
+            // Coriolis' force (can be implemented implicitly)
+            let cor = 0.5
+                * (2.0
+                    * EARTH_ROTATIONAL_SPEED
+                    * (gphiu.get(ji, jj) * DEGREES_TO_RADIANS).sin()
+                    * (v_sc + v_nc))
+                * e12u.get(ji, jj)
+                * (hu.get(ji, jj) + sshn_u.get(ji, jj));
+
+            // Pressure gradient
+            let hpg = -GRAVITY_FORCE
+                * (hu.get(ji, jj) + sshn_u.get(ji, jj))
+                * e2u.get(ji, jj)
+                * (sshn.get(ji + 1, jj) - sshn.get(ji, jj));
+
+            // Linear bottom friction (implemented implicitly.
+
+            // Final ua calculation based on combining all the other factors
+            simulation_vars.ua.set(
+                ji,
+                jj,
+                (un.get(ji, jj) * (hu.get(ji, jj) + sshn_u.get(ji, jj))
+                    + rdt * (adv + vis + cor + hpg) / e12u.get(ji, jj))
+                    / (hu.get(ji, jj) + ssha_u.get(ji, jj))
+                    / (1.0 + cbfr * rdt),
+            );
+        }
+    }
 }
 
 fn boundary_conditions_kernel(
