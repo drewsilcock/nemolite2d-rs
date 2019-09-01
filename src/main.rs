@@ -257,6 +257,8 @@ fn main() {
 
     println!("Initialised grid constants and simulation variables.");
 
+    output_values(&model_params, &grid_constants, &simulation_vars, 0);
+
     let initial_step_index = model_params.initial_step_index;
     let final_step_index = model_params.final_step_index;
     for step_idx in initial_step_index..=final_step_index {
