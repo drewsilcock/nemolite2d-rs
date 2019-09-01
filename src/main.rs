@@ -343,6 +343,7 @@ fn momentum_kernel(
     let jpj = model_params.jpj;
     let rdt = model_params.rdt;
     let cbfr = model_params.cbfr;
+    let visc = model_params.visc;
 
     let e1u = &grid_constants.e1u;
     let e2u = &grid_constants.e2u;
@@ -450,7 +451,7 @@ fn momentum_kernel(
                         + sshn_u.get(ji, jj + 1))
             };
 
-            let vis = model_params.visc * (dudx_e - dudx_w) * e2u.get(ji, jj)
+            let vis = visc * (dudx_e - dudx_w) * e2u.get(ji, jj)
                 + (dudy_n - dudy_s) * e1u.get(ji, jj) * 0.5;
 
             // Coriolis' force (can be implemented implicitly)
@@ -477,6 +478,119 @@ fn momentum_kernel(
                 (un.get(ji, jj) * (hu.get(ji, jj) + sshn_u.get(ji, jj))
                     + rdt * (adv + vis + cor + hpg) / e12u.get(ji, jj))
                     / (hu.get(ji, jj) + ssha_u.get(ji, jj))
+                    / (1.0 + cbfr * rdt),
+            );
+        }
+    }
+
+    for jj in 1..jpj - 1 {
+        for ji in 1..jpi {
+            if pt.get(ji, jj) + pt.get(ji + 1, jj) <= 0 {
+                continue; // Jump over non-computatinal domain
+            }
+
+            if pt.get(ji, jj) <= 0 || pt.get(ji, jj + 1) <= 0 {
+                continue; // Jump over v boundary cells
+            }
+
+            // Advection
+            let v_n = 0.5 * (vn.get(ji, jj) + vn.get(ji, jj + 1)) * e1t.get(ji, jj + 1); // Add length scale.
+            let depn = ht.get(ji, jj + 1) + sshn.get(ji, jj + 1);
+
+            let v_s = 0.5 * (vn.get(ji, jj) + vn.get(ji, jj - 1)) * e1t.get(ji, jj); // Add length scale
+            let deps = ht.get(ji, jj) + sshn.get(ji, jj);
+
+            let u_wc = 0.5 * (un.get(ji - 1, jj) + un.get(ji - 1, jj + 1));
+            let u_w = 0.5 * u_wc * (e2u.get(ji - 1, jj) + e2u.get(ji - 1, jj + 1));
+            let depw = 0.5
+                * (hu.get(ji - 1, jj)
+                    + sshn_u.get(ji - 1, jj)
+                    + hu.get(ji - 1, jj + 1)
+                    + sshn_u.get(ji - 1, jj + 1));
+
+            let u_ec = 0.5 * (un.get(ji, jj) + un.get(ji, jj + 1));
+            let u_e = 0.5 * u_ec * (e2u.get(ji, jj) + e2u.get(ji, jj + 1));
+            let depe = 0.5
+                * (hu.get(ji, jj)
+                    + sshn_u.get(ji, jj)
+                    + hu.get(ji, jj + 1)
+                    + sshn_u.get(ji, jj + 1));
+
+            // Advection (currently first order upwind)
+            let vv_s = (0.5 - (0.5 as WorkingPrecision).copysign(v_s)) * vn.get(ji, jj)
+                + (0.5 + (0.5 as WorkingPrecision).copysign(v_s)) * vn.get(ji, jj - 1);
+            let vv_n = (0.5 + (0.5 as WorkingPrecision).copysign(v_n)) * vn.get(ji, jj)
+                + (0.5 - (0.5 as WorkingPrecision).copysign(v_n)) * vn.get(ji, jj + 1);
+
+            let vv_w = if pt.get(ji - 1, jj) <= 0 || pt.get(ji - 1, jj + 1) <= 0 {
+                (0.5 - (0.5 as WorkingPrecision).copysign(u_w)) * vn.get(ji, jj)
+            } else {
+                (0.5 - (0.5 as WorkingPrecision).copysign(u_w)) * vn.get(ji, jj)
+                    + (0.5 + (0.5 as WorkingPrecision).copysign(u_w)) * vn.get(ji - 1, jj)
+            };
+
+            let vv_e = if pt.get(ji + 1, jj) <= 0 || pt.get(ji + 1, jj + 1) <= 0 {
+                (0.5 + (0.5 as WorkingPrecision).copysign(u_e)) * vn.get(ji, jj)
+            } else {
+                (0.5 + (0.5 as WorkingPrecision).copysign(u_e)) * vn.get(ji, jj)
+                    + (0.5 - (0.5 as WorkingPrecision).copysign(u_e)) * vn.get(ji + 1, jj)
+            };
+
+            let adv = vv_w * u_w * depw - vv_e * u_e * depe + vv_s * v_s * deps - vv_n * v_n * depn;
+
+            // Viscosity
+            let dvdy_n = (vn.get(ji, jj + 1) - vn.get(ji, jj)) / e2t.get(ji, jj + 1)
+                * (ht.get(ji, jj + 1) + sshn.get(ji, jj + 1));
+            let dvdy_s = (vn.get(ji, jj) - vn.get(ji, jj - 1)) / e2t.get(ji, jj)
+                * (ht.get(ji, jj) + sshn.get(ji, jj));
+
+            let dvdx_w = if pt.get(ji - 1, jj) <= 0 || pt.get(ji - 1, jj + 1) <= 0 {
+                0.0 // Slip boundary
+            } else {
+                (vn.get(ji, jj) - vn.get(ji - 1, jj)) / (e1v.get(ji, jj) + e1v.get(ji - 1, jj))
+                    * (hv.get(ji, jj)
+                        + sshn_v.get(ji, jj)
+                        + hv.get(ji - 1, jj)
+                        + sshn_v.get(ji - 1, jj))
+            };
+
+            let dvdx_e = if pt.get(ji + 1, jj) <= 0 || pt.get(ji + 1, jj + 1) <= 0 {
+                0.0 // Slip boundary
+            } else {
+                (vn.get(ji + 1, jj) - vn.get(ji, jj)) / (e1v.get(ji, jj) + e1v.get(ji + 1, jj))
+                    * (hv.get(ji, jj)
+                        + sshn_v.get(ji, jj)
+                        + hv.get(ji + 1, jj)
+                        + sshn_v.get(ji + 1, jj))
+            };
+
+            let vis = visc * (dvdy_n - dvdy_s) * e1v.get(ji, jj)
+                + (dvdx_e - dvdx_w) * e2v.get(ji, jj) * 0.5;
+
+            // Coriolis' force (can be implemented implicitly)
+            let cor = -0.5
+                * (2.0
+                    * EARTH_ROTATIONAL_SPEED
+                    * (gphiv.get(ji, jj) * DEGREES_TO_RADIANS).sin()
+                    * (u_ec + u_wc))
+                * e12v.get(ji, jj)
+                * (hv.get(ji, jj) + sshn_v.get(ji, jj));
+
+            // Pressure gradient
+            let hpg = -GRAVITY_FORCE
+                * (hv.get(ji, jj) + sshn_v.get(ji, jj))
+                * e1v.get(ji, jj)
+                * (sshn.get(ji, jj + 1) - sshn.get(ji, jj));
+
+            // Linear bottom friction (implemented implicitly.
+
+            // Final va calculation based on combining all the other factors
+            simulation_vars.va.set(
+                ji,
+                jj,
+                (vn.get(ji, jj) * (hv.get(ji, jj) + sshn_v.get(ji, jj))
+                    + rdt * (adv + vis + cor + hpg) / e12v.get(ji, jj))
+                    / (hv.get(ji, jj) + ssha_v.get(ji, jj))
                     / (1.0 + cbfr * rdt),
             );
         }
