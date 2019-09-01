@@ -98,24 +98,24 @@ impl GridConstants {
         let jpj = model_params.jpj;
 
         // Water inside computational domain in inner cells
-        for jj in 0..jpj + 1 {
-            for ji in 0..jpi + 1 {
+        for jj in 0..=jpj + 1 {
+            for ji in 0..=jpi + 1 {
                 self.pt.set(ji, jj, 1);
             }
         }
 
-        for jj in 0..jpj + 1 {
+        for jj in 0..=jpj + 1 {
             self.pt.set(0, jj, 0); // Solid boundary on West
             self.pt.set(jpi + 1, jj, 0); // Solid boundary on East
         }
 
         // Solid boundary on North
-        for ji in 0..jpi + 1 {
+        for ji in 0..=jpi + 1 {
             self.pt.set(ji, jpj + 1, 0);
         }
 
         // Open boundary (water outside computational domain) on South
-        for ji in 1..jpi {
+        for ji in 1..=jpi {
             self.pt.set(ji, 0, -1);
         }
 
@@ -139,8 +139,8 @@ impl GridConstants {
         self.hu.set_all(model_params.dep_const);
         self.hv.set_all(model_params.dep_const);
 
-        for jj in 1..jpj {
-            for ji in 1..jpi {
+        for jj in 1..=jpj {
+            for ji in 1..=jpi {
                 self.e12t
                     .set(ji, jj, self.e1t.get(ji, jj) * self.e2t.get(ji, jj));
 
@@ -162,15 +162,15 @@ impl GridConstants {
             }
         }
 
-        for jj in 1..jpj {
-            for ji in 0..jpi {
+        for jj in 1..=jpj {
+            for ji in 0..=jpi {
                 self.e12u
                     .set(ji, jj, self.e1u.get(ji, jj) * self.e2u.get(ji, jj));
             }
         }
 
-        for jj in 0..jpj {
-            for ji in 1..jpi {
+        for jj in 0..=jpj {
+            for ji in 1..=jpi {
                 self.e12v
                     .set(ji, jj, self.e1v.get(ji, jj) * self.e2v.get(ji, jj));
             }
@@ -232,8 +232,8 @@ impl SimulationVariables {
         let jpi = model_params.jpi;
         let jpj = model_params.jpj;
 
-        for jj in 1..jpj {
-            for ji in 0..jpi {
+        for jj in 1..=jpj {
+            for ji in 0..=jpi {
                 let itmp1 = min(ji + 1, jpi);
                 let itmp2 = max(ji, 1);
                 let rtmp1 = grid_constants.e12t.get(itmp1, jj) * self.sshn.get(itmp1, jj)
@@ -243,8 +243,8 @@ impl SimulationVariables {
             }
         }
 
-        for jj in 0..jpj {
-            for ji in 1..jpi {
+        for jj in 0..=jpj {
+            for ji in 1..=jpi {
                 let itmp1 = min(jj + 1, jpj);
                 let itmp2 = max(jj, 1);
                 let rtmp1 = grid_constants.e12t.get(ji, itmp1) * self.sshn.get(ji, itmp1)
@@ -265,7 +265,9 @@ fn main() {
 
     println!("Initialised grid constants and simulation variables.");
 
-    for step_idx in model_params.initial_step_index..model_params.final_step_index {
+    let initial_step_index = model_params.initial_step_index;
+    let final_step_index = model_params.final_step_index;
+    for step_idx in initial_step_index..=final_step_index {
         step_simulation(
             &model_params,
             &grid_constants,
@@ -307,8 +309,8 @@ fn continuity_kernel(
     let jpi = model_params.jpi;
     let jpj = model_params.jpj;
 
-    for jj in 1..jpj {
-        for ji in 1..jpi {
+    for jj in 1..=jpj {
+        for ji in 1..=jpi {
             let rtmp1 = (simulation_vars.sshn_u.get(ji, jj) + grid_constants.hu.get(ji, jj))
                 * simulation_vars.un.get(ji, jj);
 
@@ -368,8 +370,8 @@ fn momentum_kernel(
     let un = &simulation_vars.un;
     let vn = &simulation_vars.vn;
 
-    for jj in 1..jpj {
-        for ji in 1..jpi - 1 {
+    for jj in 1..=jpj {
+        for ji in 1..=jpi - 1 {
             // Jump over non-computational domain
             if pt.get(ji, jj) + pt.get(ji + 1, jj) <= 0 {
                 continue;
@@ -483,8 +485,8 @@ fn momentum_kernel(
         }
     }
 
-    for jj in 1..jpj - 1 {
-        for ji in 1..jpi {
+    for jj in 1..=jpj - 1 {
+        for ji in 1..=jpi {
             if pt.get(ji, jj) + pt.get(ji + 1, jj) <= 0 {
                 continue; // Jump over non-computatinal domain
             }
@@ -609,8 +611,8 @@ fn boundary_conditions_kernel(
     let pt = &grid_constants.pt;
 
     // Apply open boundary conditions of clamped sea surface height
-    for jj in 1..jpj {
-        for ji in 1..jpi {
+    for jj in 1..=jpj {
+        for ji in 1..=jpi {
             if pt.get(ji, jj) <= 0 {
                 continue;
             }
@@ -628,8 +630,8 @@ fn boundary_conditions_kernel(
     }
 
     // Apply solid boundary conditions for u-velocity
-    for jj in 1..jpj {
-        for ji in 0..jpi {
+    for jj in 1..=jpj {
+        for ji in 0..=jpi {
             if pt.get(ji, jj) * pt.get(ji + 1, jj) == 0 {
                 simulation_vars.ua.set(ji, jj, 0.0);
             }
@@ -637,8 +639,8 @@ fn boundary_conditions_kernel(
     }
 
     // Apply solid boundary conditions for v-velocity
-    for jj in 0..jpj {
-        for ji in 1..jpi {
+    for jj in 0..=jpj {
+        for ji in 1..=jpi {
             if pt.get(ji, jj) * pt.get(ji, jj + 1) == 0 {
                 simulation_vars.va.set(ji, jj, 0.0);
             }
@@ -646,8 +648,8 @@ fn boundary_conditions_kernel(
     }
 
     // Flather open boundary condition for u
-    for jj in 1..jpj {
-        for ji in 0..jpi {
+    for jj in 1..=jpj {
+        for ji in 0..=jpi {
             if pt.get(ji, jj) + pt.get(ji + 1, jj) <= -1 {
                 continue;
             }
@@ -677,8 +679,8 @@ fn boundary_conditions_kernel(
     }
 
     // Flather open boundary condition for v
-    for jj in 0..jpj {
-        for ji in 1..jpi {
+    for jj in 0..=jpj {
+        for ji in 1..=jpi {
             if pt.get(ji, jj) + pt.get(ji, jj + 1) <= -1 {
                 continue;
             }
@@ -716,32 +718,32 @@ fn next_kernel(
     let jpi = model_params.jpi;
     let jpj = model_params.jpj;
 
-    for jj in 1..jpj {
-        for ji in 0..jpi {
+    for jj in 1..=jpj {
+        for ji in 0..=jpi {
             simulation_vars
                 .un
                 .set(ji, jj, simulation_vars.ua.get(ji, jj));
         }
     }
 
-    for jj in 0..jpj {
-        for ji in 1..jpi {
+    for jj in 0..=jpj {
+        for ji in 1..=jpi {
             simulation_vars
                 .vn
                 .set(ji, jj, simulation_vars.va.get(ji, jj));
         }
     }
 
-    for jj in 1..jpj {
-        for ji in 1..jpi {
+    for jj in 1..=jpj {
+        for ji in 1..=jpi {
             simulation_vars
                 .sshn
                 .set(ji, jj, simulation_vars.ssha.get(ji, jj));
         }
     }
 
-    for jj in 1..jpj {
-        for ji in 0..jpi {
+    for jj in 1..=jpj {
+        for ji in 0..=jpi {
             let this_cell_type = grid_constants.pt.get(ji, jj);
             let next_cell_type = grid_constants.pt.get(ji + 1, jj);
 
@@ -768,8 +770,8 @@ fn next_kernel(
         }
     }
 
-    for jj in 0..jpj {
-        for ji in 1..jpi {
+    for jj in 0..=jpj {
+        for ji in 1..=jpi {
             let this_cell_type = grid_constants.pt.get(ji, jj);
             let next_cell_type = grid_constants.pt.get(ji, jj + 1);
 
@@ -803,6 +805,9 @@ fn output_values(
     simulation_vars: &SimulationVariables,
     step_index: u32,
 ) {
+    let jpi = model_params.jpi;
+    let jpj = model_params.jpj;
+
     let field_separater = ", ";
     let line_separator = "\n";
 
@@ -815,8 +820,8 @@ fn output_values(
         "vn-variant".to_owned(),
     ];
     let mut rows = vec![headers];
-    for jj in 1..model_params.jpj {
-        for ji in 1..model_params.jpi {
+    for jj in 1..=jpj {
+        for ji in 1..=jpi {
             let un_variant = 0.5 * simulation_vars.un.get(ji, jj) + simulation_vars.un.get(ji, jj);
             let vn_variant =
                 0.5 * simulation_vars.vn.get(ji, jj - 1) + simulation_vars.vn.get(ji, jj);
