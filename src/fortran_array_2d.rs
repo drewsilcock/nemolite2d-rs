@@ -7,7 +7,6 @@ pub struct FortranArray2D<T: Scalar> {
     start_column_idx: usize,
 
     num_rows: usize,
-    num_columns: usize,
 }
 
 impl<T: Scalar> FortranArray2D<T>
@@ -21,8 +20,6 @@ where T: Default {
             start_column_idx,
 
             num_rows,
-            num_columns,
-
             values: vec![T::default(); num_rows * num_columns],
         }
     }
