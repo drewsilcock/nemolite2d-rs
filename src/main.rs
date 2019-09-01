@@ -474,14 +474,11 @@ fn momentum_kernel(
             // Linear bottom friction (implemented implicitly.
 
             // Final ua calculation based on combining all the other factors
-            simulation_vars.ua.set(
-                ji,
-                jj,
-                (un.get(ji, jj) * (hu.get(ji, jj) + sshn_u.get(ji, jj))
-                    + rdt * (adv + vis + cor + hpg) / e12u.get(ji, jj))
-                    / (hu.get(ji, jj) + ssha_u.get(ji, jj))
-                    / (1.0 + cbfr * rdt),
-            );
+            let ua_value = (un.get(ji, jj) * (hu.get(ji, jj) + sshn_u.get(ji, jj))
+                + rdt * (adv + vis + cor + hpg) / e12u.get(ji, jj))
+                / (hu.get(ji, jj) + ssha_u.get(ji, jj))
+                / (1.0 + cbfr * rdt);
+            simulation_vars.ua.set(ji, jj, ua_value);
         }
     }
 
@@ -587,14 +584,11 @@ fn momentum_kernel(
             // Linear bottom friction (implemented implicitly.
 
             // Final va calculation based on combining all the other factors
-            simulation_vars.va.set(
-                ji,
-                jj,
-                (vn.get(ji, jj) * (hv.get(ji, jj) + sshn_v.get(ji, jj))
-                    + rdt * (adv + vis + cor + hpg) / e12v.get(ji, jj))
-                    / (hv.get(ji, jj) + ssha_v.get(ji, jj))
-                    / (1.0 + cbfr * rdt),
-            );
+            let va_value = (vn.get(ji, jj) * (hv.get(ji, jj) + sshn_v.get(ji, jj))
+                + rdt * (adv + vis + cor + hpg) / e12v.get(ji, jj))
+                / (hv.get(ji, jj) + ssha_v.get(ji, jj))
+                / (1.0 + cbfr * rdt);
+            simulation_vars.va.set(ji, jj, va_value);
         }
     }
 }
