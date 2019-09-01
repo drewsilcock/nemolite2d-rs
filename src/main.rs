@@ -196,11 +196,6 @@ struct SimulationVariables {
     // Velocities - next step's values
     ua: FortranArray2D<WorkingPrecision>,
     va: FortranArray2D<WorkingPrecision>,
-
-    // We need to double buffer the ua and va due to possible race conditions in
-    // the Flather boundary conditions.
-    ua_buffer: FortranArray2D<WorkingPrecision>,
-    va_buffer: FortranArray2D<WorkingPrecision>,
 }
 
 impl SimulationVariables {
@@ -219,9 +214,6 @@ impl SimulationVariables {
 
             ua: FortranArray2D::new(0, 1, model_params.jpi, model_params.jpj),
             va: FortranArray2D::new(1, 0, model_params.jpi, model_params.jpj),
-
-            ua_buffer: FortranArray2D::new(0, 1, model_params.jpi, model_params.jpj),
-            va_buffer: FortranArray2D::new(1, 0, model_params.jpi, model_params.jpj),
         };
 
         simulation_vars.initialise(model_params, grid_constants);
@@ -650,7 +642,7 @@ fn boundary_conditions_kernel(
 
             if pt.get(ji, jj) < 0 {
                 let jiu = ji + 1;
-                simulation_vars.ua_buffer.set(
+                simulation_vars.ua.set(
                     ji,
                     jj,
                     simulation_vars.ua.get(jiu, jj)
@@ -660,7 +652,7 @@ fn boundary_conditions_kernel(
                 );
             } else if pt.get(ji + 1, jj) < 0 {
                 let jiu = ji - 1;
-                simulation_vars.ua_buffer.set(
+                simulation_vars.ua.set(
                     ji,
                     jj,
                     simulation_vars.ua.get(jiu, jj)
@@ -681,7 +673,7 @@ fn boundary_conditions_kernel(
 
             if pt.get(ji, jj) < 0 {
                 let jiv = jj + 1;
-                simulation_vars.va_buffer.set(
+                simulation_vars.va.set(
                     ji,
                     jj,
                     simulation_vars.va.get(ji, jiv)
@@ -691,7 +683,7 @@ fn boundary_conditions_kernel(
                 );
             } else if pt.get(ji, jj + 1) < 0 {
                 let jiv = jj - 1;
-                simulation_vars.va_buffer.set(
+                simulation_vars.va.set(
                     ji,
                     jj,
                     simulation_vars.va.get(ji, jiv)
