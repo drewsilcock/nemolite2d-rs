@@ -810,7 +810,8 @@ fn output_values(
     let mut rows = vec![headers];
     for jj in 1..=jpj {
         for ji in 1..=jpi {
-            let un_variant = 0.5 * simulation_vars.un.get(ji, jj) + simulation_vars.un.get(ji, jj);
+            let un_variant =
+                0.5 * simulation_vars.un.get(ji - 1, jj) + simulation_vars.un.get(ji, jj);
             let vn_variant =
                 0.5 * simulation_vars.vn.get(ji, jj - 1) + simulation_vars.vn.get(ji, jj);
 
