@@ -15,11 +15,11 @@ use model_parameters::ModelParameters;
 
 type WorkingPrecision = f64;
 
-const PI: WorkingPrecision = 3.1415926535897932;
+const PI: WorkingPrecision = 3.141_592_653_589_793_2;
 const AMP_TIDE: WorkingPrecision = 0.2;
-const OMEGA_TIDE: WorkingPrecision = 2.0;
+const OMEGA_TIDE: WorkingPrecision = 2.0 * 3.14159 / (12.42 * 3600.0);
 const GRAVITY_FORCE: WorkingPrecision = 9.80665;
-const EARTH_ROTATIONAL_SPEED: WorkingPrecision = 7.292116E-05; // Earth rotation speed (s^(-1)) a.k.a. omega
+const EARTH_ROTATIONAL_SPEED: WorkingPrecision = 7.292_116E-05; // Earth rotation speed (s^(-1)) a.k.a. omega
 const DEGREES_TO_RADIANS: WorkingPrecision = PI / 180.0;
 
 struct GridConstants {
