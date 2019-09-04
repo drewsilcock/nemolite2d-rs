@@ -596,7 +596,12 @@ fn boundary_conditions_kernel(
     let jpi = model_params.jpi;
     let jpj = model_params.jpj;
 
+    let hu = &grid_constants.hu;
+    let hv = &grid_constants.hv;
     let pt = &grid_constants.pt;
+
+    let sshn_u = &simulation_vars.sshn_u;
+    let sshn_v = &simulation_vars.sshn_v;
 
     // Apply open boundary conditions of clamped sea surface height
     for jj in 1..=jpj {
@@ -645,16 +650,14 @@ fn boundary_conditions_kernel(
             if pt.get(ji, jj) < 0 {
                 let jiu = ji + 1;
                 let flather_ua = simulation_vars.ua.get(jiu, jj)
-                    + (GRAVITY_FORCE / grid_constants.hu.get(ji, jj)).sqrt()
-                        * (simulation_vars.sshn_u.get(ji, jj)
-                            - simulation_vars.sshn_u.get(jiu, jj));
+                    + (GRAVITY_FORCE / hu.get(ji, jj)).sqrt()
+                        * (sshn_u.get(ji, jj) - sshn_u.get(jiu, jj));
                 simulation_vars.ua.set(ji, jj, flather_ua);
             } else if pt.get(ji + 1, jj) < 0 {
                 let jiu = ji - 1;
                 let flather_ua = simulation_vars.ua.get(jiu, jj)
-                    + (GRAVITY_FORCE / grid_constants.hu.get(ji, jj)).sqrt()
-                        * (simulation_vars.sshn_u.get(ji, jj)
-                            - simulation_vars.sshn_u.get(jiu, jj));
+                    + (GRAVITY_FORCE / hu.get(ji, jj)).sqrt()
+                        * (sshn_u.get(ji, jj) - sshn_u.get(jiu, jj));
                 simulation_vars.ua.set(ji, jj, flather_ua);
             }
         }
@@ -670,16 +673,14 @@ fn boundary_conditions_kernel(
             if pt.get(ji, jj) < 0 {
                 let jiv = jj + 1;
                 let flather_va = simulation_vars.va.get(ji, jiv)
-                    + (GRAVITY_FORCE / grid_constants.hv.get(ji, jj)).sqrt()
-                        * (simulation_vars.sshn_v.get(ji, jj)
-                            - simulation_vars.sshn_v.get(ji, jiv));
+                    + (GRAVITY_FORCE / hv.get(ji, jj)).sqrt()
+                        * (sshn_v.get(ji, jj) - sshn_v.get(ji, jiv));
                 simulation_vars.va.set(ji, jj, flather_va);
             } else if pt.get(ji, jj + 1) < 0 {
                 let jiv = jj - 1;
                 let flather_va = simulation_vars.va.get(ji, jiv)
-                    + (GRAVITY_FORCE / grid_constants.hv.get(ji, jj)).sqrt()
-                        * (simulation_vars.sshn_v.get(ji, jj)
-                            - simulation_vars.sshn_v.get(ji, jiv));
+                    + (GRAVITY_FORCE / hv.get(ji, jj)).sqrt()
+                        * (sshn_v.get(ji, jj) - sshn_v.get(ji, jiv));
                 simulation_vars.va.set(ji, jj, flather_va);
             }
         }
@@ -725,8 +726,8 @@ fn next_kernel(
 
     for jj in 1..=jpj {
         for ji in 0..=jpi {
-            let this_cell_type = grid_constants.pt.get(ji, jj);
-            let next_cell_type = grid_constants.pt.get(ji + 1, jj);
+            let this_cell_type = pt.get(ji, jj);
+            let next_cell_type = pt.get(ji + 1, jj);
 
             if this_cell_type + next_cell_type <= 0 {
                 continue;
