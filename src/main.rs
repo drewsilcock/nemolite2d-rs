@@ -302,29 +302,29 @@ fn continuity_kernel(
 ) {
     let jpi = model_params.jpi;
     let jpj = model_params.jpj;
+    let rdt = model_params.rdt;
+
+    let e12t = &grid_constants.e12t;
+    let hu = &grid_constants.hu;
+    let hv = &grid_constants.hv;
+
+    let sshn = &simulation_vars.sshn;
+    let sshn_u = &simulation_vars.sshn_u;
+    let sshn_v = &simulation_vars.sshn_v;
+    let un = &simulation_vars.un;
+    let vn = &simulation_vars.vn;
 
     for jj in 1..=jpj {
         for ji in 1..=jpi {
-            let rtmp1 = (simulation_vars.sshn_u.get(ji, jj) + grid_constants.hu.get(ji, jj))
-                * simulation_vars.un.get(ji, jj);
-
-            let rtmp2 = (simulation_vars.sshn_u.get(ji - 1, jj)
-                + grid_constants.hu.get(ji - 1, jj))
-                * simulation_vars.un.get(ji - 1, jj);
-
-            let rtmp3 = (simulation_vars.sshn_v.get(ji, jj) + grid_constants.hv.get(ji, jj))
-                * simulation_vars.vn.get(ji, jj);
-
-            let rtmp4 = (simulation_vars.sshn_v.get(ji, jj - 1)
-                + grid_constants.hv.get(ji, jj - 1))
-                * simulation_vars.vn.get(ji, jj - 1);
+            let rtmp1 = (sshn_u.get(ji, jj) + hu.get(ji, jj)) * un.get(ji, jj);
+            let rtmp2 = (sshn_u.get(ji - 1, jj) + hu.get(ji - 1, jj)) * un.get(ji - 1, jj);
+            let rtmp3 = (sshn_v.get(ji, jj) + hv.get(ji, jj)) * vn.get(ji, jj);
+            let rtmp4 = (sshn_v.get(ji, jj - 1) + hv.get(ji, jj - 1)) * vn.get(ji, jj - 1);
 
             simulation_vars.ssha.set(
                 ji,
                 jj,
-                simulation_vars.sshn.get(ji, jj)
-                    + (rtmp2 - rtmp1 + rtmp4 - rtmp3) * model_params.rdt
-                        / grid_constants.e12t.get(ji, jj),
+                sshn.get(ji, jj) + (rtmp2 - rtmp1 + rtmp4 - rtmp3) * rdt / e12t.get(ji, jj),
             );
         }
     }
