@@ -347,8 +347,8 @@ fn momentum_kernel(
     let e2v = &grid_constants.e2v;
     let e1t = &grid_constants.e1t;
     let e2t = &grid_constants.e2t;
-    let e12u = &grid_constants.e2u;
-    let e12v = &grid_constants.e2v;
+    let e12u = &grid_constants.e12u;
+    let e12v = &grid_constants.e12v;
     let ht = &grid_constants.ht;
     let hu = &grid_constants.hu;
     let hv = &grid_constants.hv;
