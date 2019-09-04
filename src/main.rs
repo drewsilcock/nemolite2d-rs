@@ -694,6 +694,11 @@ fn next_kernel(
     let jpi = model_params.jpi;
     let jpj = model_params.jpj;
 
+    let e12t = &grid_constants.e12t;
+    let e12u = &grid_constants.e12u;
+    let e12v = &grid_constants.e12v;
+    let pt = &grid_constants.pt;
+
     for jj in 1..=jpj {
         for ji in 0..=jpi {
             simulation_vars
@@ -728,15 +733,15 @@ fn next_kernel(
             }
 
             if this_cell_type == 1 && next_cell_type == 1 {
-                let rtmp1 = grid_constants.e12t.get(ji, jj) * simulation_vars.sshn.get(ji, jj)
-                    + grid_constants.e12t.get(ji + 1, jj) * simulation_vars.sshn.get(ji + 1, jj);
+                let rtmp1 = e12t.get(ji, jj) * simulation_vars.sshn.get(ji, jj)
+                    + e12t.get(ji + 1, jj) * simulation_vars.sshn.get(ji + 1, jj);
 
                 simulation_vars
                     .sshn_u
-                    .set(ji, jj, 0.5 * rtmp1 / grid_constants.e12u.get(ji, jj));
+                    .set(ji, jj, 0.5 * rtmp1 / e12u.get(ji, jj));
             } else if this_cell_type <= 0 {
                 simulation_vars
-                    .ssha_u
+                    .sshn_u
                     .set(ji, jj, simulation_vars.sshn.get(ji + 1, jj));
             } else if next_cell_type <= 0 {
                 simulation_vars
@@ -748,27 +753,27 @@ fn next_kernel(
 
     for jj in 0..=jpj {
         for ji in 1..=jpi {
-            let this_cell_type = grid_constants.pt.get(ji, jj);
-            let next_cell_type = grid_constants.pt.get(ji, jj + 1);
+            let this_cell_type = pt.get(ji, jj);
+            let next_cell_type = pt.get(ji, jj + 1);
 
             if this_cell_type + next_cell_type <= 0 {
                 continue;
             }
 
             if this_cell_type == 1 && next_cell_type == 1 {
-                let rtmp1 = grid_constants.e12t.get(ji, jj) * simulation_vars.sshn.get(ji, jj)
-                    + grid_constants.e12t.get(ji, jj + 1) * simulation_vars.sshn.get(ji, jj + 1);
+                let rtmp1 = e12t.get(ji, jj) * simulation_vars.sshn.get(ji, jj)
+                    + e12t.get(ji, jj + 1) * simulation_vars.sshn.get(ji, jj + 1);
 
                 simulation_vars
-                    .sshn_u
-                    .set(ji, jj, 0.5 * rtmp1 / grid_constants.e12v.get(ji, jj));
+                    .sshn_v
+                    .set(ji, jj, 0.5 * rtmp1 / e12v.get(ji, jj));
             } else if this_cell_type <= 0 {
                 simulation_vars
-                    .ssha_u
+                    .sshn_v
                     .set(ji, jj, simulation_vars.sshn.get(ji, jj + 1));
             } else if next_cell_type <= 0 {
                 simulation_vars
-                    .sshn_u
+                    .sshn_v
                     .set(ji, jj, simulation_vars.sshn.get(ji, jj));
             }
         }
