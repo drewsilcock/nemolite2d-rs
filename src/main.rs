@@ -273,8 +273,8 @@ fn main() {
     let ua_checksum = checksum::field_checksum(&simulation_vars.ua);
     let va_checksum = checksum::field_checksum(&simulation_vars.va);
 
-    println!("ua checksum = {}", ua_checksum);
-    println!("va checksum = {}", va_checksum);
+    println!("ua checksum = {:.8E}", ua_checksum);
+    println!("va checksum = {:.8E}", va_checksum);
 }
 
 fn step_simulation(
