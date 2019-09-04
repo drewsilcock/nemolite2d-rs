@@ -809,12 +809,12 @@ fn output_values(
                 0.5 * simulation_vars.vn.get(ji, jj - 1) + simulation_vars.vn.get(ji, jj);
 
             rows.push([
-                format!("{}", grid_constants.xt.get(ji, jj)),
-                format!("{}", grid_constants.yt.get(ji, jj)),
-                format!("{}", grid_constants.ht.get(ji, jj)),
-                format!("{}", simulation_vars.sshn.get(ji, jj)),
-                format!("{}", un_variant),
-                format!("{}", vn_variant),
+                format!("{:6.8E}", grid_constants.xt.get(ji, jj)),
+                format!("{:6.8E}", grid_constants.yt.get(ji, jj)),
+                format!("{:6.8E}", grid_constants.ht.get(ji, jj)),
+                format!("{:6.8E}", simulation_vars.sshn.get(ji, jj)),
+                format!("{:6.8E}", un_variant),
+                format!("{:6.8E}", vn_variant),
             ]);
         }
     }
@@ -825,7 +825,7 @@ fn output_values(
         .collect::<Vec<String>>()
         .join(line_separator);
 
-    let output_fname = format!("nemolite2d_output_{}.csv", step_index);
+    let output_fname = format!("nemolite2d_output_{:0>5}.csv", step_index);
     let output_path = Path::new(&output_fname);
     let path_display = output_path.display();
 
