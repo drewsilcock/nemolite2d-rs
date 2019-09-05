@@ -1,5 +1,7 @@
 # Application output
-*_output_*.csv
+*.txt
+*.dat
+*.csv
 
 # Vim files
 .*.swp
@@ -10,3 +12,7 @@
 # Cargo files
 /target
 **/*.rs.bk
+
+# Python files
+.mypy_cache
+.venv*
