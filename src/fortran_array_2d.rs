@@ -10,8 +10,15 @@ pub struct FortranArray2D<T: Scalar> {
 }
 
 impl<T: Scalar> FortranArray2D<T>
-where T: Default {
-    pub fn new(start_row_idx: usize, start_column_idx: usize, end_row_idx: usize, end_column_idx: usize) -> Self {
+where
+    T: Default,
+{
+    pub fn new(
+        start_row_idx: usize,
+        start_column_idx: usize,
+        end_row_idx: usize,
+        end_column_idx: usize,
+    ) -> Self {
         let num_rows = end_row_idx - start_row_idx + 1;
         let num_columns = end_column_idx - start_column_idx + 1;
 
@@ -38,7 +45,7 @@ where T: Default {
         self.values.iter_mut().map(|x| *x = value).count();
     }
 
-    pub fn iter(& self) -> std::slice::Iter<'_, T> {
+    pub fn iter(&self) -> std::slice::Iter<'_, T> {
         self.values.iter()
     }
 

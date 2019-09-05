@@ -61,8 +61,10 @@ impl ModelParameters {
         let mut settings = config::Config::default();
 
         settings
-            .merge(config::File::with_name(config_fname)).unwrap()
-            .merge(config::Environment::with_prefix("NEMOLITE2D")).unwrap();
+            .merge(config::File::with_name(config_fname))
+            .unwrap()
+            .merge(config::Environment::with_prefix("NEMOLITE2D"))
+            .unwrap();
 
         settings.try_into()
     }
