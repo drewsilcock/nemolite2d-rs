@@ -38,11 +38,11 @@ where T: Default {
         self.values.iter_mut().map(|x| *x = value).count();
     }
 
-    pub fn iter<'a>(&'a self) -> std::slice::Iter<'a, T> {
+    pub fn iter(& self) -> std::slice::Iter<'_, T> {
         self.values.iter()
     }
 
-    pub fn iter_mut<'a>(&'a mut self) -> std::slice::IterMut<'a, T> {
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, T> {
         self.values.iter_mut()
     }
 
