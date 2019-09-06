@@ -247,7 +247,7 @@ impl SimulationVariables {
 }
 
 fn main() {
-    let model_params = ModelParameters::new("Config").unwrap();
+    let model_params = ModelParameters::new("Config");
     println!("Model params: {:?}", model_params);
 
     let grid_constants = GridConstants::new(&model_params);
