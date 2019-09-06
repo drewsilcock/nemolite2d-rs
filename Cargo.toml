@@ -5,11 +5,11 @@ authors = ["Drew Silcock <drew.silcock@stfc.ac.uk>"]
 edition = "2018"
 
 [lib]
-name = "nemolite2d_lib"
+name = "nemolite2d_rs_lib"
 path = "src/lib.rs"
 
 [[bin]]
-name = "nemolite2d"
+name = "nemolite2d-rs"
 path = "src/main.rs"
 
 [dependencies]
