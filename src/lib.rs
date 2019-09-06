@@ -246,7 +246,7 @@ impl SimulationVariables {
     }
 }
 
-fn main() {
+pub fn run_simulation() {
     let model_params = ModelParameters::new("Config");
     println!("Model params: {:?}", model_params);
 
