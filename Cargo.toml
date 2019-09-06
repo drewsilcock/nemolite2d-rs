@@ -4,6 +4,14 @@ version = "0.1.0"
 authors = ["Drew Silcock <drew.silcock@stfc.ac.uk>"]
 edition = "2018"
 
+[lib]
+name = "nemolite2d_lib"
+path = "src/lib.rs"
+
+[[bin]]
+name = "nemolite2d"
+path = "src/main.rs"
+
 [dependencies]
 nalgebra = "0.18.1"
 config = "0.9.3"
