@@ -6,8 +6,8 @@ mod fortran_array_2d;
 mod kernels;
 mod model_parameters;
 mod timer;
+mod simulation_variables;
 
-use std::cmp::{max, min};
 use std::error::Error;
 use std::fs::File;
 use std::io::Write;
@@ -17,6 +17,7 @@ use app_timers::AppTimers;
 use fortran_array_2d::FortranArray2D;
 use kernels::{boundary_conditions_kernel, continuity_kernel, momentum_kernel, next_kernel};
 use model_parameters::ModelParameters;
+use simulation_variables::SimulationVariables;
 
 type WorkingPrecision = f64;
 
@@ -171,76 +172,6 @@ impl GridConstants {
             for ji in 1..=jpi {
                 self.e12v
                     .set(ji, jj, self.e1v.get(ji, jj) * self.e2v.get(ji, jj));
-            }
-        }
-    }
-}
-
-pub struct SimulationVariables {
-    // Sea surface height - current values
-    sshn: FortranArray2D<WorkingPrecision>,
-    sshn_u: FortranArray2D<WorkingPrecision>,
-    sshn_v: FortranArray2D<WorkingPrecision>,
-
-    // Sea surface height - next step's values
-    ssha: FortranArray2D<WorkingPrecision>,
-    ssha_u: FortranArray2D<WorkingPrecision>,
-    ssha_v: FortranArray2D<WorkingPrecision>,
-
-    // Velocities - current values
-    un: FortranArray2D<WorkingPrecision>,
-    vn: FortranArray2D<WorkingPrecision>,
-
-    // Velocities - next step's values
-    ua: FortranArray2D<WorkingPrecision>,
-    va: FortranArray2D<WorkingPrecision>,
-}
-
-impl SimulationVariables {
-    pub fn new(model_params: &ModelParameters, grid_constants: &GridConstants) -> Self {
-        let mut simulation_vars = SimulationVariables {
-            sshn: FortranArray2D::new(1, 1, model_params.jpi, model_params.jpj),
-            sshn_u: FortranArray2D::new(0, 1, model_params.jpi, model_params.jpj),
-            sshn_v: FortranArray2D::new(1, 0, model_params.jpi, model_params.jpj),
-
-            ssha: FortranArray2D::new(1, 1, model_params.jpi, model_params.jpj),
-            ssha_u: FortranArray2D::new(0, 1, model_params.jpi, model_params.jpj),
-            ssha_v: FortranArray2D::new(1, 0, model_params.jpi, model_params.jpj),
-
-            un: FortranArray2D::new(0, 1, model_params.jpi, model_params.jpj),
-            vn: FortranArray2D::new(1, 0, model_params.jpi, model_params.jpj),
-
-            ua: FortranArray2D::new(0, 1, model_params.jpi, model_params.jpj),
-            va: FortranArray2D::new(1, 0, model_params.jpi, model_params.jpj),
-        };
-
-        simulation_vars.initialise(model_params, grid_constants);
-        simulation_vars
-    }
-
-    fn initialise(&mut self, model_params: &ModelParameters, grid_constants: &GridConstants) {
-        let jpi = model_params.jpi;
-        let jpj = model_params.jpj;
-
-        for jj in 1..=jpj {
-            for ji in 0..=jpi {
-                let itmp1 = min(ji + 1, jpi);
-                let itmp2 = max(ji, 1);
-                let rtmp1 = grid_constants.e12t.get(itmp1, jj) * self.sshn.get(itmp1, jj)
-                    + grid_constants.e12t.get(itmp2, jj) * self.sshn.get(itmp2, jj);
-                self.sshn_u
-                    .set(ji, jj, 0.5 * rtmp1 / grid_constants.e12u.get(ji, jj));
-            }
-        }
-
-        for jj in 0..=jpj {
-            for ji in 1..=jpi {
-                let itmp1 = min(jj + 1, jpj);
-                let itmp2 = max(jj, 1);
-                let rtmp1 = grid_constants.e12t.get(ji, itmp1) * self.sshn.get(ji, itmp1)
-                    + grid_constants.e12t.get(ji, itmp2) * self.sshn.get(ji, itmp2);
-                self.sshn_v
-                    .set(ji, jj, 0.5 * rtmp1 / grid_constants.e12v.get(ji, jj));
             }
         }
     }
