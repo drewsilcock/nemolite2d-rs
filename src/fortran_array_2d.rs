@@ -1,4 +1,8 @@
-use nalgebra::Scalar;
+use std::any::Any;
+use std::fmt::Debug;
+
+pub trait Scalar: Copy + PartialEq + Debug + Any {}
+impl<T: Copy + PartialEq + Debug + Any> Scalar for T {}
 
 pub struct FortranArray2D<T: Scalar> {
     values: Vec<T>,
