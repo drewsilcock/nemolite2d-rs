@@ -42,7 +42,14 @@ To run with Wasmer:
 
 ```sh
 $ curl https://get.wasmer.io -sSfL | sh
-$ wasmer run target/wasm32-wasi/release/nemolite2d-rs.wasm --dir .
+$ wasmer run target/wasm32-wasi/release/nemolite2d-rs.wasm --dir=.
+```
+
+Wasmer also supports Wasm's SIMD instructions (at the time of writing, only in the LLVM backend), which allow for significant performance improvements:
+
+```sh
+$ RUSTFLAGS="-C target-feature=+simd128" cargo build --release --target=wasm32-wasi
+$ wasmer run target/wasm32-wasi/release/nemolite2d-rs.wasm --dir=. --backend=llvm --enable-simd
 ```
 
 ### Running in a web browser via JavaScript
