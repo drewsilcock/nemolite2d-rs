@@ -35,14 +35,16 @@ where
         }
     }
 
+    #[inline(always)]
     pub fn get(&self, row_idx: usize, column_idx: usize) -> T {
         let idx = self.index_from_row_and_column(row_idx, column_idx);
         self.values[idx]
     }
 
+    #[inline(always)]
     pub fn set(&mut self, row_idx: usize, column_idx: usize, value: T) {
         let idx = self.index_from_row_and_column(row_idx, column_idx);
-        self.values[idx] = value;
+        self.values[idx] = value
     }
 
     pub fn set_all(&mut self, value: T) {
@@ -57,6 +59,7 @@ where
         self.values.iter_mut()
     }
 
+    #[inline(always)]
     fn index_from_row_and_column(&self, row_idx: usize, column_idx: usize) -> usize {
         (row_idx - self.start_row_idx) + (column_idx - self.start_column_idx) * (self.num_rows)
     }
